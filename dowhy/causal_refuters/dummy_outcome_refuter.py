@@ -222,8 +222,8 @@ class DummyOutcomeRefuter(CausalRefuter):
         identified_estimand = copy.deepcopy(self._target_estimand)
         identified_estimand.outcome_variable = ["dummy_outcome"]
 
-        self.logger.info("Refutation over {} simulated datasets".format(self._num_simulations) )
-        self.logger.info("The transformation passed: {}".format(self._transformation_list) )
+        self.logger.info(f"Refutation over {self._num_simulations} simulated datasets")
+        self.logger.info(f"The transformation passed: {self._transformation_list}")
 
         simulation_results = []
         refute_list = []
@@ -283,25 +283,21 @@ class DummyOutcomeRefuter(CausalRefuter):
             else:
 
                 groups = self.preprocess_data_by_treatment()
-                group_count = 0
-
                 if len(self._test_fraction) == 1:
                     self._test_fraction = len(groups) * self._test_fraction
 
-                for key_train, _ in groups:
+                for group_count, (key_train, _) in enumerate(groups):
                     base_train = groups.get_group(key_train).sample(frac=self._test_fraction[group_count].base)
-                    train_set = set( [ tuple(line) for line in base_train.values ] )
-                    total_set = set( [ tuple(line) for line in groups.get_group(key_train).values ] )
+                    train_set = {tuple(line) for line in base_train.values}
+                    total_set = {tuple(line) for line in groups.get_group(key_train).values}
                     base_validation = pd.DataFrame( list( total_set.difference(train_set) ), columns=base_train.columns )
                     X_train_df = base_train[self._chosen_variables]
 
                     X_train = X_train_df.values
                     outcome_train = base_train[self._outcome_name_str].values
 
-                    validation_df = []
                     transformation_list = self._transformation_list
-                    validation_df.append(base_validation)
-
+                    validation_df = [base_validation]
                     for key_validation, _ in groups:
                         if key_validation != key_train:
                             validation_df.append(groups.get_group(key_validation).sample(frac=self._test_fraction[group_count].other))
@@ -315,8 +311,12 @@ class DummyOutcomeRefuter(CausalRefuter):
                     # If the number of data points is too few, run the default transformation: [("zero",""),("noise", {'std_dev':1} )]
                     if X_train.shape[0] <= self._min_data_point_threshold:
                         transformation_list = DummyOutcomeRefuter.DEFAULT_TRANSFORMATION
-                        self.logger.warning("The number of data points in X_train:{} for category:{} is less than threshold:{}".format(X_train.shape[0], key_train, self._min_data_point_threshold))
-                        self.logger.warning("Therefore, defaulting to the minimal set of transformations:{}".format(transformation_list))
+                        self.logger.warning(
+                            f"The number of data points in X_train:{X_train.shape[0]} for category:{key_train} is less than threshold:{self._min_data_point_threshold}"
+                        )
+                        self.logger.warning(
+                            f"Therefore, defaulting to the minimal set of transformations:{transformation_list}"
+                        )
 
                     outcome_validation = self.process_data(X_train, outcome_train, X_validation, outcome_validation, transformation_list)
 
@@ -336,9 +336,6 @@ class DummyOutcomeRefuter(CausalRefuter):
                     new_effect = new_estimator.estimate_effect()
 
                     estimates.append(new_effect.value)
-                    group_count += 1
-
-
             simulation_results.append(estimates)
 
 
@@ -457,11 +454,10 @@ class DummyOutcomeRefuter(CausalRefuter):
         If there are no estimators, we can optimize processing by skipping the
         data preprocessing and running the transformations on the whole dataset.
         """
-        for action,_ in self._transformation_list:
-            if callable(action) or action in DummyOutcomeRefuter.SUPPORTED_ESTIMATORS:
-                return True
-
-        return False
+        return any(
+            callable(action) or action in DummyOutcomeRefuter.SUPPORTED_ESTIMATORS
+            for action, _ in self._transformation_list
+        )
 
     def preprocess_data_by_treatment(self):
         """
@@ -487,11 +483,9 @@ class DummyOutcomeRefuter(CausalRefuter):
         variable_type = self._data[treatment_variable_name].dtypes
 
         if bool == variable_type:
-            groups = self._data.groupby(treatment_variable_name)
-            return groups
-        # We use string arguments to account for both 32 and 64 bit varaibles
+            return self._data.groupby(treatment_variable_name)
         elif 'float' in variable_type.name or \
-               'int' in variable_type.name:
+                   'int' in variable_type.name:
             # action for continuous variables
             data =  self._data
             std_dev = data[treatment_variable_name].std()
@@ -507,7 +501,9 @@ class DummyOutcomeRefuter(CausalRefuter):
             groups = data.groupby('bins')
             return groups
         else:
-            raise ValueError("Passed {}. Expected bool, float, int or categorical.".format(variable_type.name))
+            raise ValueError(
+                f"Passed {variable_type.name}. Expected bool, float, int or categorical."
+            )
 
     def _estimate_dummy_outcome(self, action, X_train, outcome, **func_args):
         """
@@ -539,7 +535,7 @@ class DummyOutcomeRefuter(CausalRefuter):
         :param 'func_args': variable length keyworded argument
             The parameters passed to the sklearn estimator.
         """
-        if  action == "linear_regression":
+        if action == "linear_regression":
             return LinearRegression(**func_args)
         elif action == "knn":
             return KNeighborsRegressor(**func_args)
@@ -550,7 +546,9 @@ class DummyOutcomeRefuter(CausalRefuter):
         elif action == "neural_network":
             return MLPRegressor(**func_args)
         else:
-            raise ValueError("The function: {} is not supported by dowhy at the moment.".format(action))
+            raise ValueError(
+                f"The function: {action} is not supported by dowhy at the moment."
+            )
 
     def permute(self, outcome, permute_fraction):
         '''
@@ -579,7 +577,9 @@ class DummyOutcomeRefuter(CausalRefuter):
                     outcome[index] = temp
             return outcome
         else:
-            raise ValueError("The value of permute_fraction is {}. Which is greater than 1.".format(permute_fraction))
+            raise ValueError(
+                f"The value of permute_fraction is {permute_fraction}. Which is greater than 1."
+            )
 
     def noise(self, outcome, std_dev):
         """

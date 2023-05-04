@@ -27,11 +27,9 @@ class InstrumentalVariableEstimator(CausalEstimator):
             identification step. Default is to use all the IV variables
             from the identification step.
         """
-        # Required to ensure that self.method_params contains all the information
-        # to create an object of this class
-        args_dict = {k: v for k, v in locals().items()
-                     if k not in type(self)._STD_INIT_ARGS}
-        args_dict.update(kwargs)
+        args_dict = {
+            k: v for k, v in locals().items() if k not in type(self)._STD_INIT_ARGS
+        } | kwargs
         super().__init__(*args, **args_dict)
         # choosing the instrumental variable to use
         self.estimating_instrument_names = self._target_estimand.instrumental_variables
@@ -79,12 +77,13 @@ class InstrumentalVariableEstimator(CausalEstimator):
             reg_results = ivmodel.fit()
             print(reg_results.summary())
             iv_est = sum(reg_results.params) # the effect is the same for any treatment value (assume treatment goes from 0 to 1)
-        estimate = CausalEstimate(estimate=iv_est,
-                                  control_value=self._control_value,
-                                  treatment_value=self._treatment_value,
-                                  target_estimand=self._target_estimand,
-                                  realized_estimand_expr=self.symbolic_estimator)
-        return estimate
+        return CausalEstimate(
+            estimate=iv_est,
+            control_value=self._control_value,
+            treatment_value=self._treatment_value,
+            target_estimand=self._target_estimand,
+            realized_estimand_expr=self.symbolic_estimator,
+        )
 
     def construct_symbolic_estimator(self, estimand):
         sym_outcome = (spstats.Normal(",".join(estimand.outcome_variable), 0, 1))

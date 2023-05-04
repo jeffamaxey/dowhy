@@ -47,14 +47,11 @@ class PropensityScoreWeightingEstimator(PropensityScoreEstimator):
         :param propensity_score_column: Column name that stores the
             propensity score. Default='propensity_score'
         """
-        # Required to ensure that self.method_params contains all the information
-        # to create an object of this class
-        args_dict = kwargs
-        args_dict.update({
+        args_dict = kwargs | {
             'min_ps_score': min_ps_score,
             'max_ps_score': max_ps_score,
-            'weighting_scheme': weighting_scheme
-            })
+            'weighting_scheme': weighting_scheme,
+        }
         super().__init__(
             *args,
             propensity_score_model=propensity_score_model,
@@ -77,13 +74,11 @@ class PropensityScoreWeightingEstimator(PropensityScoreEstimator):
                 self.propensity_score_model = linear_model.LogisticRegression()
             self.propensity_score_model.fit(self._observed_common_causes, self._treatment)
             self._data[self.propensity_score_column] = self.propensity_score_model.predict_proba(self._observed_common_causes)[:, 1]
-        else:
-            # check if user provides the propensity score column
-            if self.propensity_score_column not in self._data.columns:
-                raise ValueError(f"Propensity score column {self.propensity_score_column} does not exist. Please specify the column name that has your pre-computed propensity score.")
-            else:
-                self.logger.info(f"INFO: Using pre-computed propensity score in column {self.propensity_score_column}")
+        elif self.propensity_score_column in self._data.columns:
+            self.logger.info(f"INFO: Using pre-computed propensity score in column {self.propensity_score_column}")
 
+        else:
+            raise ValueError(f"Propensity score column {self.propensity_score_column} does not exist. Please specify the column name that has your pre-computed propensity score.")
         # trim propensity score weights
         self._data[self.propensity_score_column] = np.minimum(self.max_ps_score, self._data[self.propensity_score_column])
         self._data[self.propensity_score_column] = np.maximum(self.min_ps_score, self._data[self.propensity_score_column])
@@ -172,14 +167,14 @@ class PropensityScoreWeightingEstimator(PropensityScoreEstimator):
         # Subtracting the weighted means
         est = self._data['d_y'].sum() / sum_dy_weights - self._data['dbar_y'].sum() / sum_dbary_weights
 
-        # TODO - how can we add additional information into the returned estimate?
-        estimate = CausalEstimate(estimate=est,
-                                  control_value=self._control_value,
-                                  treatment_value=self._treatment_value,
-                                  target_estimand=self._target_estimand,
-                                  realized_estimand_expr=self.symbolic_estimator,
-                                  propensity_scores=self._data[self.propensity_score_column])
-        return estimate
+        return CausalEstimate(
+            estimate=est,
+            control_value=self._control_value,
+            treatment_value=self._treatment_value,
+            target_estimand=self._target_estimand,
+            realized_estimand_expr=self.symbolic_estimator,
+            propensity_scores=self._data[self.propensity_score_column],
+        )
 
     def construct_symbolic_estimator(self, estimand):
         expr = "b: " + ",".join(estimand.outcome_variable) + "~"
