@@ -16,11 +16,11 @@ def adjacency_matrix_to_adjacency_list(adjacency_matrix, labels=None):
     :returns: Adjacency list as a dictionary.
     '''
 
-    adjlist = dict()
+    adjlist = {}
     if labels is None:
         labels = [str(i+1) for i in range(adjacency_matrix.shape[0])]
     for i in range(adjacency_matrix.shape[0]):
-        adjlist[labels[i]] = list()
+        adjlist[labels[i]] = []
         for j in range(adjacency_matrix.shape[1]):
             if adjacency_matrix[i, j] != 0:
                 adjlist[labels[i]].append(labels[j])
@@ -99,8 +99,7 @@ def induced_graph(node_set, adjacency_matrix, node2idx):
     node_idx_list.sort()
     adjacency_matrix_induced = adjacency_matrix.copy()
     adjacency_matrix_induced = adjacency_matrix_induced[node_idx_list]
-    adjacency_matrix_induced = adjacency_matrix_induced[:, node_idx_list]
-    return adjacency_matrix_induced
+    return adjacency_matrix_induced[:, node_idx_list]
 
 def find_c_components(adjacency_matrix, node_set, idx2node):
     '''

@@ -28,8 +28,12 @@ class RandomNeuralNetwork(DataGeneratingProcess):
         super().__init__(**kwargs)
         self.arch = kwargs.pop('arch', RandomNeuralNetwork.DEFAULT_ARCH_DICT)
         self.random_state = kwargs.pop('random_state', RandomNeuralNetwork.RANDOM_STATE)
-        self.nn = {}
-        self.nn['confounder=>treatment'] = MLPRegressor(random_state=self.random_state, hidden_layer_sizes=self.arch['confounder=>treatment'])
+        self.nn = {
+            'confounder=>treatment': MLPRegressor(
+                random_state=self.random_state,
+                hidden_layer_sizes=self.arch['confounder=>treatment'],
+            )
+        }
         self.nn['confounder=>outcome'] = MLPRegressor(random_state=self.random_state, hidden_layer_sizes=self.arch['confounder=>outcome'])
         self.nn['effect_modifier=>outcome'] = MLPRegressor(random_state=self.random_state, hidden_layer_sizes=self.arch['effect_modifier=>outcome'])
         self.nn['treatment=>outcome'] = MLPRegressor(random_state=self.random_state, hidden_layer_sizes=self.arch['treatment=>outcome'])
@@ -105,6 +109,4 @@ class RandomNeuralNetwork(DataGeneratingProcess):
         random_state:{}
         """.format(self.arch, self.nn, self.random_state)
 
-        rep = header + rep
-
-        return rep
+        return header + rep
